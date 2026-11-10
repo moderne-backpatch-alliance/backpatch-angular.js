@@ -2078,7 +2078,7 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
     }
 
 
-    function sanitizeSrcset(value, invokeType) {
+    function sanitizeSrcset(value, invokeType, wholeWithoutWhitespace) {
       if (!value) {
         return value;
       }
@@ -2098,6 +2098,15 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
       // first check if there are spaces because it's not the same pattern
       var trimmedSrcset = trim(value);
+      // A srcset with no ASCII whitespace (the browser's, not \s) is one URL to the browser, commas inside included
+      // (a data: URL, a w_400,h_300 path). Drop its edge commas and spaces, so ',https://evil/' is checked as that host
+      // and the value written is the one checked ($$sanitizeUri passes an allowed one untrimmed), in one pass over each edge.
+      if (wholeWithoutWhitespace && !/[\t\n\f\r ]/.test(trimmedSrcset)) {
+        var start = 0, end = trimmedSrcset.length;
+        while (start < end && /[,\s]/.test(trimmedSrcset.charAt(start))) start++;
+        while (end > start && /[,\s]/.test(trimmedSrcset.charAt(end - 1))) end--;
+        return $sce.getTrustedMediaUrl(trimmedSrcset.slice(start, end));
+      }
       //                (   999x   ,|   999w   ,|   ,|,   )
       var srcPattern = /(\s+\d+x\s*,|\s+\d+w\s*,|\s+,|,\s+)/;
       var pattern = /\s/.test(trimmedSrcset) ? srcPattern : /(,)/;
@@ -2264,9 +2273,9 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
 
         nodeName = nodeName_(this.$$element);
 
-        // Sanitize img[srcset] values.
-        if (nodeName === 'img' && key === 'srcset') {
-          this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)');
+        // Sanitize img[srcset] and source[srcset] values.
+        if ((nodeName === 'img' || nodeName === 'source') && key === 'srcset') {
+          this[key] = value = sanitizeSrcset(value, '$set(\'srcset\', value)', nodeName === 'source');
         }
 
         if (writeAttr !== false) {

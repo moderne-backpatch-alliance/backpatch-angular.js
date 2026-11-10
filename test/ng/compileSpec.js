@@ -11538,6 +11538,64 @@ describe('$compile', function() {
           'unsafe:javascript:something ,unsafe:javascript:something');
     }));
 
+    it('should sanitize the srcset of source elements', inject(function($rootScope, $compile) {
+      element = $compile('<picture><source srcset="{{testUrl}}"></picture>')($rootScope);
+      $rootScope.testUrl = 'javascript:doEvilStuff()';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('unsafe:javascript:doEvilStuff()');
+
+      $rootScope.testUrl = 'http://example.com/image.png';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('http://example.com/image.png');
+    }));
+
+    it('should sanitize the srcset of source elements as one url when it has no whitespace', inject(function($rootScope, $compile) {
+      element = $compile('<picture><source srcset="{{testUrl}}"></picture>')($rootScope);
+      $rootScope.testUrl = 'data:image/png;base64,iVBORw0KGgo=';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('data:image/png;base64,iVBORw0KGgo=');
+
+      $rootScope.testUrl = 'https://cdn.example.com/w_400,h_300/image.png';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('https://cdn.example.com/w_400,h_300/image.png');
+
+      $rootScope.testUrl = 'javascript:doEvilStuff(),x';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('unsafe:javascript:doEvilStuff(),x');
+
+      // The browser skips leading and drops trailing commas of the one url.
+      $rootScope.testUrl = ',javascript:doEvilStuff(),';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('unsafe:javascript:doEvilStuff()');
+
+      $rootScope.testUrl = ',,data:image/png;base64,iVBORw0KGgo=';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('data:image/png;base64,iVBORw0KGgo=');
+
+      // A no-break space is not whitespace to the browser's srcset parser, so this is still one url.
+      $rootScope.testUrl = ',javascript:doEvilStuff()\u00a02w';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('unsafe:javascript:doEvilStuff()%C2%A02w');
+
+      // The url written is the one checked, without the edge commas and spaces between them.
+      $rootScope.testUrl = ',\u00a0,http://example.com/image.png';
+      $rootScope.$digest();
+      expect(element.find('source').attr('srcset')).toEqual('http://example.com/image.png');
+    }));
+
+    it('should sanitize a source srcset with no whitespace in time linear in its length', inject(function($rootScope, $compile) {
+      element = $compile('<picture><source srcset="{{testUrl}}"></picture>')($rootScope);
+      var edges = new Array(40001).join(',\u00a0');
+      var commas = new Array(100001).join(',');
+      var start = Date.now();
+      $rootScope.testUrl = edges + 'http://example.com/a.png';
+      $rootScope.$digest();
+      $rootScope.testUrl = 'http://example.com/a' + commas + 'b.png';
+      $rootScope.$digest();
+      expect(Date.now() - start).toBeLessThan(1000);
+      expect(element.find('source').attr('srcset')).toEqual('http://example.com/a' + commas + 'b.png');
+    }));
+
     it('should use $$sanitizeUri', function() {
       var $$sanitizeUri = jasmine.createSpy('$$sanitizeUri').and.returnValue('someSanitizedUrl');
       module(function($provide) {
