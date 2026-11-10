@@ -364,6 +364,23 @@ describe('HTML', function() {
       expectHTML('<font-face-uri></font-face-uri>').toEqual('<font-face-uri></font-face-uri>');
     });
 
+    it('should sanitize the href of SVG image tags as an image url', function() {
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/good\.example\//);
+      });
+      expectHTML('<svg><image href="https://evil.example/b.png"></image></svg>').toEqual('<svg><image></image></svg>');
+      expectHTML('<svg><image xlink:href="https://evil.example/b.png"></image></svg>').toEqual('<svg><image></image></svg>');
+      expectHTML('<svg><image href="https://good.example/b.png"></image></svg>')
+        .toEqual('<svg><image href="https://good.example/b.png"></image></svg>');
+    });
+
+    it('should keep sanitizing the href of other SVG tags as a link url', function() {
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(/^https:\/\/good\.example\//);
+      });
+      expectHTML('<svg><a href="https://evil.example/"></a></svg>').toEqual('<svg><a href="https://evil.example/"></a></svg>');
+    });
+
     it('should sanitize SVG xlink:href attribute values', function() {
       expectHTML('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="javascript:alert()"></a></svg>')
         .toBeOneOf('<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a></a></svg>',
