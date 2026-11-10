@@ -11752,6 +11752,21 @@ describe('$compile', function() {
       });
     });
 
+    it('should use $$sanitizeUri when working with svg image and href', function() {
+      var $$sanitizeUri = jasmine.createSpy('$$sanitizeUri').and.returnValue('https://clean.example.org');
+      module(function($provide) {
+        $provide.value('$$sanitizeUri', $$sanitizeUri);
+      });
+      inject(function($compile, $rootScope) {
+        $rootScope.testUrl = 'https://bad.example.org';
+
+        var elementImage = $compile('<svg><image href="{{ testUrl + \'imageTag\' }}"></image></svg>')($rootScope);
+        $rootScope.$apply();
+        expect(elementImage.find('image').attr('href')).toBe('https://clean.example.org');
+        expect($$sanitizeUri).toHaveBeenCalledWith($rootScope.testUrl + 'imageTag', true);
+      });
+    });
+
     it('should use $$sanitizeUri when working with svg and xlink:href through ng-href', function() {
       var $$sanitizeUri = jasmine.createSpy('$$sanitizeUri').and.returnValue('https://clean.example.org');
       module(function($provide) {
