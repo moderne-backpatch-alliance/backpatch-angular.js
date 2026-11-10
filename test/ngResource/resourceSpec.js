@@ -382,6 +382,23 @@ describe('basic usage', function() {
     R.get({a: 'foo'});
   });
 
+  it('should strip trailing slashes in time linear in the length of the url', function() {
+    var slashes = new Array(100001).join('/');
+    var R = $resource('http://localhost:8080/Path' + slashes + 'end' + slashes);
+
+    $httpBackend.expect('GET', 'http://localhost:8080/Path' + slashes + 'end').respond();
+    var start = Date.now();
+    R.get();
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  it('should strip a url of only slashes to a single slash', function() {
+    var R = $resource('///');
+
+    $httpBackend.expect('GET', '/').respond();
+    R.get();
+  });
+
   it('should support provider-level configuration to strip trailing slashes in URLs', function() {
     // Set the new behavior for all new resources created by overriding the
     // provider configuration
