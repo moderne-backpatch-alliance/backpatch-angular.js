@@ -400,6 +400,50 @@ describe('SCE', function() {
             '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: xhttp://example.com/foo');
         }
       ));
+
+      it('should match every alternative of a regex against the entire url', runTest(
+        {
+          trustedUrls: [/https:\/\/good\.example\/a\.js|https:\/\/cdn\.good\.example\/b\.js/],
+          bannedUrls: []
+        }, function($sce) {
+          expect($sce.getTrustedResourceUrl('https://good.example/a.js')).toEqual('https://good.example/a.js');
+          expect($sce.getTrustedResourceUrl('https://cdn.good.example/b.js')).toEqual('https://cdn.good.example/b.js');
+          // Suffix not allowed after the first alternative.
+          expect(function() { $sce.getTrustedResourceUrl('https://good.example/a.js.evil.example/x.js'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://good.example/a.js.evil.example/x.js');
+          // Prefix not allowed before the last alternative.
+          expect(function() { $sce.getTrustedResourceUrl('https://evil.example/x.js#https://cdn.good.example/b.js'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://evil.example/x.js#https://cdn.good.example/b.js');
+        }
+      ));
+
+      it('should keep banning what a banned regex with alternation banned before', runTest(
+        {
+          trustedUrls: [/.*/],
+          bannedUrls: [/https:\/\/app\.example\/redirect|https:\/\/app\.example\/goto/]
+        }, function($sce) {
+          expect($sce.getTrustedResourceUrl('https://app.example/other')).toEqual('https://app.example/other');
+          expect(function() { $sce.getTrustedResourceUrl('https://app.example/goto'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://app.example/goto');
+          // A prefix of the first alternative stays banned.
+          expect(function() { $sce.getTrustedResourceUrl('https://app.example/redirect?to=https://evil.example/'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://app.example/redirect?to=https://evil.example/');
+        }
+      ));
+
+      it('should keep banning what a banned regex with alternation banned before when the list is set again from its getter', function() {
+        module(function($sceDelegateProvider) {
+          $sceDelegateProvider.trustedResourceUrlList([/.*/]);
+          $sceDelegateProvider.bannedResourceUrlList([/https:\/\/app\.example\/redirect|https:\/\/app\.example\/goto/]);
+          $sceDelegateProvider.bannedResourceUrlList($sceDelegateProvider.bannedResourceUrlList().concat(['https://app.example/other']));
+        });
+        inject(function($sce) {
+          expect(function() { $sce.getTrustedResourceUrl('https://app.example/other'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://app.example/other');
+          expect(function() { $sce.getTrustedResourceUrl('https://app.example/redirect?to=https://evil.example/'); }).toThrowMinErr(
+            '$sce', 'insecurl', 'Blocked loading resource from url not allowed by $sceDelegate policy.  URL: https://app.example/redirect?to=https://evil.example/');
+        });
+      });
     });
 
     describe('string matchers', function() {

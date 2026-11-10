@@ -48,7 +48,7 @@ function snakeToCamel(name) {
     .replace(UNDERSCORE_LOWERCASE_REGEXP, fnCamelCaseReplace);
 }
 
-function adjustMatcher(matcher) {
+function adjustMatcher(matcher, banned) {
   if (matcher === 'self') {
     return matcher;
   } else if (isString(matcher)) {
@@ -68,7 +68,8 @@ function adjustMatcher(matcher) {
     // The only other type of matcher allowed is a Regexp.
     // Match entire URL / disallow partial matches.
     // Flags are reset (i.e. no global, ignoreCase or multiline)
-    return new RegExp('^' + matcher.source + '$');
+    // A banned RegExp keeps '^' + source + '$', which a top-level alternation widens, so a ban never narrows.
+    return new RegExp(banned ? '^' + matcher.source + '$' : '^(?:' + matcher.source + ')$');
   } else {
     throw $sceMinErr('imatcher',
         'Matchers may only be "self", string patterns or RegExp objects');
@@ -76,11 +77,11 @@ function adjustMatcher(matcher) {
 }
 
 
-function adjustMatchers(matchers) {
+function adjustMatchers(matchers, banned) {
   var adjustedMatchers = [];
   if (isDefined(matchers)) {
     forEach(matchers, function(matcher) {
-      adjustedMatchers.push(adjustMatcher(matcher));
+      adjustedMatchers.push(adjustMatcher(matcher, banned));
     });
   }
   return adjustedMatchers;
@@ -263,7 +264,7 @@ function $SceDelegateProvider() {
    */
   this.bannedResourceUrlList = function(value) {
     if (arguments.length) {
-      bannedResourceUrlList = adjustMatchers(value);
+      bannedResourceUrlList = adjustMatchers(value, true);
     }
     return bannedResourceUrlList;
   };
