@@ -1,0 +1,21 @@
+schema: osera-patch-evidence/0.1.0
+producer: moderne
+release: 1.8.4-backpatch-00001
+baseline: v1.8.3+backpatch.baseline
+fixes:
+  - cve: CVE-2026-11998
+    advisory_url: https://nvd.nist.gov/vuln/detail/CVE-2026-11998
+    patch_commit_url: https://github.com/moderne-backpatch-alliance/backpatch-angular.js/commit/820956f
+    not_applicable_rationale: a provider-developed fix; no upstream-authored code to credit
+    basis: original
+    artifacts:
+      - angular
+    note: "New in this release; upstream (angular/angular.js) is end of life and has no fix. adjustMatcher anchored a RegExp resource URL matcher as ^source$, so with a top-level alternation the first alternative matched any URL it starts and the last any URL it ends: a trustedResourceUrlList RegExp trusted attacker URLs. A trusted RegExp's source now goes in a non-capturing group, ^(?:source)$, so every alternative matches the entire URL, as the $sceDelegateProvider docs say; this anchoring is PebblePad's 88d6786e (MIT), and flatlogic's local patch makes the same change. A bannedResourceUrlList RegExp keeps 1.8.3's ^source$, also when the list is set again from its getter, so no ban narrows: PebblePad's fix anchors banned RegExps the same way as trusted ones, which narrows such a ban to whole-URL matches; this release does not. angular carries the change and is rebuilt, its error links naming 1.8.4-backpatch-00001; the other 13 members ship as npmjs's 1.8.3 files, and angular-scenario, which bundles AngularJS 1.6.10, is not a member. angular's angular.min.js.gzip, a 1.7.2 build that upstream's 1.8.3 tarball ships and 1.8.3's build does not make, ships unchanged."
+tests:
+  commit: 820956fcb2a248954128669dbef6695db3de5974
+  command: "yarn 1.22.22 install --frozen-lockfile --ignore-scripts at the tag, then at the tested commit upstream's karma suites (karma-jqlite, karma-jquery, karma-jquery-2.2, karma-jquery-2.1, karma-modules, karma-modules-ngAnimate, karma-modules-ngMock, karma-docs) in headless Chromium with karma's junit reporter, the 3 input datetime-local specs left out by a spec filter in the run, and promises-aplus-tests on grunt's adapter with mocha's xunit reporter; the regex matcher specs of test/ng/sceSpecs.js ran the same way on the packaged angular.js and angular.min.js, where toThrowMinErr checks namespace and code since the minified file strips minErr messages; hostname attributes removed from the reports"
+  runtime: Node.js v16.20.2, yarn 1.22.22, Temurin 17.0.10, Chromium 128.0.6613.18 headless, macOS 27.2 arm64
+  report: angular-1.8.4-backpatch-00001-tests.zip
+  report_sha256: 2efcec9172c504d87b02d689fb87b35bb6c9d895f4960936bf00765b81e58be0
+  result: pass
+  note: "Upstream's suites at the tested commit: jqlite 6222, jquery 6226, jquery 2.2 and jquery 2.1 6222 each, all passed but the 3 input datetime-local specs left out of each: Chrome's datetime-local value drops trailing zeros of the milliseconds, so they fail at 1.8.3 and here alike on Chromium 128, Chrome 157 and chrome-headless-shell 147, and they were excluded with an operator's yes as unrelated to the fix. modules 673, ngAnimate 552, ngMock 279, docs 15 and Promises/A+ 872 passed. Three specs are ours: \"should match every alternative of a regex against the entire url\" fails on the code below the fix and on npmjs's 1.8.3 angular.js and angular.min.js, and passes here; \"should keep banning what a banned regex with alternation banned before\" and its case where the list is set again from its getter pass on 1.8.3 and here, and fail when banned RegExps take the whole-URL anchoring too. On the packaged angular.js and angular.min.js the 5 regex matcher specs passed, the rest of sceSpecs.js filtered out. Built with grunt package at the tag, every built file of the 14 members matches npmjs's 1.8.3 byte for byte; at this release's version without the fix, angular's files differ from 1.8.3's only in the version, the minified files' line breaks and the source map's mappings that follow them, and with the fix angular.js differs by the fix's lines. The archive's file-origins.yaml names each packaged file's origin."
