@@ -1,6 +1,6 @@
 schema: osera-patch-evidence/0.1.0
 producer: moderne
-release: 1.8.4-backpatch-00002
+release: 1.8.4-backpatch-00003
 baseline: v1.8.3+backpatch.baseline
 fixes:
   - cve: CVE-2026-11998
@@ -18,12 +18,20 @@ fixes:
     basis: original
     artifacts:
       - angular-resource
-    note: "New in this release; upstream (angular/angular.js) is end of life and has no fix. $resource stripped trailing slashes with url.replace(/\\/+$/, ''), which backtracks quadratically on a long run of slashes inside the URL; a loop from the end now removes them, and a URL of only slashes still becomes '/'. The loop is Debian's CVE-2023-26117 patch for angular.js 1.8.3-3 (MIT), in upstream's style. The code ships in angular-resource, not in angular, which the advisory names; angular-resource carries the change and is rebuilt, angular is rebuilt for the earlier fix, and the other 12 members ship as npmjs's 1.8.3 files."
+    note: "Carried from 1.8.4-backpatch-00002; no upstream fix. $resource stripped trailing slashes with url.replace(/\\/+$/, ''), which backtracks quadratically on a long run of slashes inside the URL; a loop from the end now removes them, and a URL of only slashes still becomes '/'. The loop is Debian's CVE-2023-26117 patch for angular.js 1.8.3-3 (MIT), in upstream's style. The code ships in angular-resource, not in angular, which the advisory names; angular-resource carries it and is rebuilt."
+  - cve: CVE-2025-2336
+    advisory_url: https://nvd.nist.gov/vuln/detail/CVE-2025-2336
+    patch_commit_url: https://github.com/moderne-backpatch-alliance/backpatch-angular.js/commit/71b55d9
+    not_applicable_rationale: a provider-developed fix; no upstream-authored code to credit
+    basis: original
+    artifacts:
+      - angular-sanitize
+    note: "New in this release; upstream (angular/angular.js) is end of life and has no fix. With SVG enabled, $sanitize checked the href and xlink:href of an SVG image element against the link allow-list, so an app restricting image sources with imgSrcSanitizationTrustedUrlList still let an image from any link-allowed URL through; they are now checked as image URLs, like img src, and links keep the link check. The change is Debian's CVE-2025-2336 patch for angular.js 1.8.3-3 (MIT). angular-sanitize carries it and is rebuilt; angular and angular-resource are rebuilt for the earlier fixes, and the other 11 members ship as npmjs's 1.8.3 files. With `$sanitizeProvider.enableSvg(true)` and the default lists, an SVG image element's href now keeps `data:image` and `blob:` URLs, which the image list allows, and loses `mailto:`, `tel:` and `sftp:` URLs, which only the link list allows."
 tests:
-  commit: 60db2bdcc23a1b13ac42c2a71645c366b5cfbe59
-  command: "yarn 1.22.22 install --frozen-lockfile --ignore-scripts at the tag, then at the tested commit upstream's karma suites (karma-jqlite, karma-jquery, karma-jquery-2.2, karma-jquery-2.1, karma-modules, karma-modules-ngAnimate, karma-modules-ngMock, karma-docs) in headless Chromium with karma's junit reporter, the 3 input datetime-local specs left out by a spec filter in the run, and promises-aplus-tests on grunt's adapter with mocha's xunit reporter; the counter's own specs ran the same way on the packaged angular.js and angular.min.js with angular-resource.js and angular-resource.min.js, where toThrowMinErr checks namespace and code since the minified file strips minErr messages; hostname attributes removed from the reports"
+  commit: 71b55d9462dba91da8e6c9fe21f4c4660f6ad16c
+  command: "yarn 1.22.22 install --frozen-lockfile --ignore-scripts at the tag, then at the tested commit upstream's karma suites (karma-jqlite, karma-jquery, karma-jquery-2.2, karma-jquery-2.1, karma-modules, karma-modules-ngAnimate, karma-modules-ngMock, karma-docs) in headless Chromium with karma's junit reporter, the 3 input datetime-local specs left out by a spec filter in the run, and promises-aplus-tests on grunt's adapter with mocha's xunit reporter; the counter's own specs ran the same way on the packaged angular.js and angular.min.js with angular-sanitize.js and angular-sanitize.min.js, where toThrowMinErr checks namespace and code since the minified file strips minErr messages; hostname attributes removed from the reports"
   runtime: Node.js v16.20.2, yarn 1.22.22, Temurin 17.0.10, Chromium 128.0.6613.18 headless, macOS 27.2 arm64
-  report: angular-resource-1.8.4-backpatch-00002-tests.zip
-  report_sha256: 2bd44c6cf22d808151c2eff22256ad6b3474e0cc30400455872afe620995f2d4
+  report: angular-sanitize-1.8.4-backpatch-00003-tests.zip
+  report_sha256: a0d7b1b8c881eaa988a85ce8e4590ea5f4e15a5c6e589e70ceff1df1ee819395
   result: pass
-  note: "Upstream's suites at the tested commit: jqlite 6224, jquery 6228, jquery 2.2 and jquery 2.1 6224 each, all passed but the 3 input datetime-local specs left out of each, excluded with an operator's yes as at 1.8.4-backpatch-00001 (Chrome's datetime-local value drops trailing zeros of the milliseconds, so they fail at 1.8.3 and here alike); modules 675, ngAnimate 552, ngMock 279, docs 15 and Promises/A+ 872 passed. Two specs are ours: \"should strip trailing slashes in time linear in the length of the url\" (100,000 slashes inside the URL, under 1 s) fails on the code below the fix, where it takes about 4.7 s, and on npmjs's 1.8.3 angular-resource.js and angular-resource.min.js, and passes here; \"should strip a url of only slashes to a single slash\" passes on 1.8.3 and here. On the packaged files the 2 specs passed, the rest of resourceSpec.js filtered out. At this release's version without this fix, the members' files differ from 1.8.4-backpatch-00001's only in the version; with it, angular-resource.js differs by the fix's lines. The archive's file-origins.yaml names each packaged file's origin."
+  note: "Upstream's suites at the tested commit: jqlite 6226, jquery 6230, jquery 2.2 and jquery 2.1 6226 each, all passed but the 3 input datetime-local specs left out of each, excluded with an operator's yes as at 1.8.4-backpatch-00001 (Chrome's datetime-local value drops trailing zeros of the milliseconds, so they fail at 1.8.3 and here alike); modules 677, ngAnimate 552, ngMock 279, docs 15 and Promises/A+ 872 passed. Two specs are ours: \"should sanitize the href of SVG image tags as an image url\" fails on the code below the fix and on npmjs's 1.8.3 angular-sanitize.js and angular-sanitize.min.js, and passes here; \"should keep sanitizing the href of other SVG tags as a link url\" passes on 1.8.3 and here. On the packaged files the 10 SVG support specs passed, the rest of sanitizeSpec.js filtered out. At this release's version without this fix, the members' files differ from 1.8.4-backpatch-00002's only in the version; with it, angular-sanitize.js differs by the fix's lines. The archive's file-origins.yaml names each packaged file's origin."
