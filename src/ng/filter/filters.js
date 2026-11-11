@@ -68,15 +68,27 @@ function currencyFilter($locale) {
       fractionSize = formats.PATTERNS[1].maxFrac;
     }
 
-    // If the currency symbol is empty, trim whitespace around the symbol
-    var currencySymbolRe = !currencySymbol ? /\s*\u00A4\s*/g : /\u00A4/g;
-
     // if null or undefined pass it through
-    return (amount == null)
-        ? amount
-        : formatNumber(amount, formats.PATTERNS[1], formats.GROUP_SEP, formats.DECIMAL_SEP, fractionSize).
-            replace(currencySymbolRe, currencySymbol);
+    if (amount == null) return amount;
+    var formatted = formatNumber(amount, formats.PATTERNS[1], formats.GROUP_SEP, formats.DECIMAL_SEP, fractionSize);
+    // If the currency symbol is empty, trim whitespace around the symbol
+    return currencySymbol ? formatted.replace(/\u00A4/g, currencySymbol) : replaceTrimmedSymbol(formatted, '' + currencySymbol);
   };
+}
+
+// str.replace(/\s*\u00A4\s*/g, replacement) in one pass, for a replacement without $ patterns: that regex scans a run of
+// whitespace from each of its positions when no symbol follows (CVE-2022-25844). A match only starts in the run before a symbol.
+function replaceTrimmedSymbol(str, replacement) {
+  var out = '', last = 0, n = str.length, start, end, at;
+  for (at = str.indexOf('\u00A4'); at !== -1; at = str.indexOf('\u00A4', end)) {
+    start = at;
+    while (start > last && /\s/.test(str.charAt(start - 1))) start--;
+    end = at + 1;
+    while (end < n && /\s/.test(str.charAt(end))) end++;
+    out += str.slice(last, start) + replacement;
+    last = end;
+  }
+  return out + str.slice(last);
 }
 
 /**

@@ -199,6 +199,18 @@ describe('filters', function() {
         expect(currency(-1.07, '')).toBe('  --  1.07  --  ');
       })
     );
+
+    it('should trim whitespace around an empty currency symbol in time linear in its length', inject(function($locale) {
+      var pattern = $locale.NUMBER_FORMATS.PATTERNS[1];
+      var spaces = new Array(60001).join(' ');
+      var start = Date.now();
+      pattern.posPre = spaces;
+      pattern.posSuf = '';
+      expect(currency(1, '')).toBe(spaces + '1.00');
+      pattern.posPre = spaces + '\u00A4' + spaces + 'x';
+      expect(currency(1, '')).toBe('x1.00');
+      expect(Date.now() - start).toBeLessThan(1000);
+    }));
   });
 
   describe('number', function() {
