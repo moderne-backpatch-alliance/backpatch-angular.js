@@ -68,6 +68,15 @@ describe('linky', function() {
     expect(linky('www.example.com')).toEqual('<a href="http://www.example.com">www.example.com</a>');
   });
 
+  it('should find links in time linear in the length of a run of address characters', function() {
+    var run = new Array(60001).join('a');
+    var start = Date.now();
+    expect(linky(run)).toEqual(run);
+    expect(linky(run + ' ' + run + '@example.com')).
+      toEqual(run + ' <a href="mailto:' + run + '@example.com">' + run + '@example.com</a>');
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
   it('should handle mailto:', function() {
     expect(linky('mailto:me@example.com')).
                     toEqual('<a href="mailto:me@example.com">me@example.com</a>');

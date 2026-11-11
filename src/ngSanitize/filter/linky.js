@@ -128,15 +128,58 @@
    </example>
  */
 angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
-  var LINKY_URL_REGEXP =
-        /((s?ftp|https?):\/\/|(www\.)|(mailto:)?[A-Za-z0-9._%+-]+@)\S*[^\s.;,(){}<>"\u201d\u2019]/i,
-      MAILTO_REGEXP = /^mailto:/i;
+  var MAILTO_REGEXP = /^mailto:/i;
 
   var linkyMinErr = angular.$$minErr('linky');
   var isDefined = angular.isDefined;
   var isFunction = angular.isFunction;
   var isObject = angular.isObject;
   var isString = angular.isString;
+
+  // findUrl(from) returns what text.substring(from).match() returned, with index in text, for the regex linky used,
+  // /((s?ftp|https?):\/\/|(www\.)|(mailto:)?[A-Za-z0-9._%+-]+@)\S*[^\s.;,(){}<>"\u201d\u2019]/i, which rescans a run of
+  // address characters from each of its positions (CVE-2025-4690); run ends found once, from the right, give the same matches.
+  function linkyUrlFinder(text) {
+    var n = text.length, lastEnd = new Array(n + 1), addressEnd = new Array(n + 1), i, ch;
+    lastEnd[n] = -1;
+    addressEnd[n] = n;
+    for (i = n - 1; i >= 0; i--) {
+      ch = text.charAt(i);
+      if (/\s/.test(ch)) {
+        lastEnd[i] = -1;
+      } else {
+        lastEnd[i] = lastEnd[i + 1] !== -1 ? lastEnd[i + 1] : (/[.;,(){}<>"\u201d\u2019]/.test(ch) ? -1 : i + 1);
+      }
+      addressEnd[i] = /[A-Za-z0-9._%+-]/.test(ch) ? addressEnd[i + 1] : i;
+    }
+    function startsWith(p, prefix) {
+      return text.substr(p, prefix.length).toLowerCase() === prefix;
+    }
+    // \S*[^\s.;,(){}<>"\u201d\u2019] from q: the end of the last allowed character in the non-space run at q, or -1
+    function tailEnd(q) {
+      return q < n ? lastEnd[q] : -1;
+    }
+    function found(p, end, scheme, www, mailto) {
+      return {index: p, 0: text.slice(p, end), 2: scheme, 3: www, 4: mailto};
+    }
+    return function findUrl(from) {
+      var p, end, scheme, at;
+      for (p = from; p < n; p++) {
+        scheme = startsWith(p, 'sftp://') ? 4 : startsWith(p, 'ftp://') ? 3 : startsWith(p, 'https://') ? 5 : startsWith(p, 'http://') ? 4 : 0;
+        if (scheme && (end = tailEnd(p + scheme + 3)) !== -1) return found(p, end, text.substr(p, scheme), undefined, undefined);
+        if (startsWith(p, 'www.') && (end = tailEnd(p + 4)) !== -1) return found(p, end, undefined, text.substr(p, 4), undefined);
+        if (startsWith(p, 'mailto:')) {
+          at = addressEnd[p + 7];
+          if (at > p + 7 && text.charAt(at) === '@' && (end = tailEnd(at + 1)) !== -1) {
+            return found(p, end, undefined, undefined, text.substr(p, 7));
+          }
+        }
+        at = addressEnd[p];
+        if (at > p && text.charAt(at) === '@' && (end = tailEnd(at + 1)) !== -1) return found(p, end, undefined, undefined, undefined);
+      }
+      return null;
+    };
+  }
 
   return function(text, target, attributes) {
     if (text == null || text === '') return text;
@@ -147,24 +190,23 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
       isObject(attributes) ? function getAttributesObject() {return attributes;} :
       function getEmptyAttributesObject() {return {};};
 
+    var findUrl = linkyUrlFinder(text);
     var match;
-    var raw = text;
     var html = [];
     var url;
-    var i;
-    while ((match = raw.match(LINKY_URL_REGEXP))) {
+    var pos = 0;
+    while ((match = findUrl(pos))) {
       // We can not end in these as they are sometimes found at the end of the sentence
       url = match[0];
       // if we did not match ftp/http/www/mailto then assume mailto
       if (!match[2] && !match[4]) {
         url = (match[3] ? 'http://' : 'mailto:') + url;
       }
-      i = match.index;
-      addText(raw.substr(0, i));
+      addText(text.substring(pos, match.index));
       addLink(url, match[0].replace(MAILTO_REGEXP, ''));
-      raw = raw.substring(i + match[0].length);
+      pos = match.index + match[0].length;
     }
-    addText(raw);
+    addText(text.substring(pos));
     return $sanitize(html.join(''));
 
     function addText(text) {
