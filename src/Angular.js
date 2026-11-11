@@ -999,7 +999,9 @@ function copy(source, destination, maxDepth) {
         return new source.constructor(source.valueOf());
 
       case '[object RegExp]':
-        var re = new RegExp(source.source, source.toString().match(/[^/]*$/)[0]);
+        // The flags follow the last slash; /[^/]*$/ found them in time quadratic in the source's length (CVE-2023-26116).
+        var str = source.toString();
+        var re = new RegExp(source.source, str.slice(str.lastIndexOf('/') + 1));
         re.lastIndex = source.lastIndex;
         return re;
 

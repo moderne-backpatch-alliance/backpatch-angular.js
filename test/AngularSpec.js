@@ -81,6 +81,17 @@ describe('angular', function() {
       expect(copy(re).exec(str)[0]).toEqual('aabb');
     });
 
+    it('should copy a RegExp with a long source in time linear in its length', function() {
+      var re = new RegExp(new Array(100001).join('a') + '/b', 'gim');
+      var start = Date.now();
+      var copied = copy(re);
+      expect(Date.now() - start).toBeLessThan(1000);
+      expect(copied.source).toBe(re.source);
+      expect(copied.global).toBe(true);
+      expect(copied.ignoreCase).toBe(true);
+      expect(copied.multiline).toBe(true);
+    });
+
     it('should deeply copy literal RegExp', function() {
       var objWithRegExp = {
         re: /.*/
