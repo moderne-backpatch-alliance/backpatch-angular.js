@@ -2097,15 +2097,57 @@ function $CompileProvider($provide, $$sanitizeUriProvider) {
         return $sce.getTrustedMediaUrl(trimmedSrcset.slice(start, end));
       }
       var srcSetValues = value.split(',');
-      var sanitisedSrcSet = [];
+      var sanitisedSrcSet = [], checkedUris = createMap();
       for (var i = 0; i < srcSetValues.length; i++) {
         var wellTrimmedSrcSetValue = srcSetValues[i].trim().replace(/\s{2,}/, ' ');
         var srcSplit = wellTrimmedSrcSetValue.split(' ');
         var uri = $sce.getTrustedMediaUrl(srcSplit[0]);
         sanitisedSrcSet.push(uri + (srcSplit[1] !== undefined ? ' ' + srcSplit[1] : ''));
+        checkedUris[uri] = true;
       }
 
-      return sanitisedSrcSet.join(',');
+      var result = sanitisedSrcSet.join(',');
+      // The browser reads a srcset's URLs at ASCII whitespace and at commas between candidates, not at these parts, so
+      // joined parts can make a URL that was never checked (CVE-2024-8372); such a value is refused whole.
+      return srcsetUrlsPass(result, checkedUris) ? result : '';
+    }
+
+    // fn(start, end) for each candidate URL the browser reads from value, as whatwg's "parse a srcset attribute" does:
+    // a URL ends at ASCII whitespace, less its trailing commas, and its descriptors at a comma outside parentheses.
+    function forEachSrcsetUrl(value, fn) {
+      var n = value.length, pos = 0, start, end, ch, inParens;
+      for (;;) {
+        while (pos < n && /[\t\n\f\r ,]/.test(value.charAt(pos))) pos++;
+        if (pos >= n) return;
+        start = pos;
+        while (pos < n && !/[\t\n\f\r ]/.test(value.charAt(pos))) pos++;
+        end = pos;
+        if (value.charAt(end - 1) === ',') {
+          while (value.charAt(end - 1) === ',') end--;
+        } else {
+          inParens = false;
+          while (pos < n) {
+            ch = value.charAt(pos++);
+            if (inParens) {
+              inParens = ch !== ')';
+            } else if (ch === '(') {
+              inParens = true;
+            } else if (ch === ',') {
+              break;
+            }
+          }
+        }
+        fn(start, end);
+      }
+    }
+
+    function srcsetUrlsPass(value, checkedUris) {
+      var pass = true;
+      forEachSrcsetUrl(value, function(start, end) {
+        var url = value.slice(start, end);
+        if (pass && url.lastIndexOf('unsafe:', 0) !== 0 && !checkedUris[url] && $sce.getTrustedMediaUrl(url) !== url) pass = false;
+      });
+      return pass;
     }
 
 

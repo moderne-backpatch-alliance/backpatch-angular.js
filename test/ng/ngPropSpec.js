@@ -456,12 +456,12 @@ describe('ngProp*', function() {
             element = $compile('<' + srcsetElement + ' ng-prop-srcset="testUrl + \',\' + testUrl"></' + srcsetElement + '>')($rootScope);
             $rootScope.testUrl = 'javascript:yay';
             $rootScope.$apply();
-            expect(element.prop('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
+            expect(element.prop('srcset')).toEqual('');
 
             element = $compile('<' + srcsetElement + ' ng-prop-srcset="\'java\' + testUrl"></' + srcsetElement + '>')($rootScope);
             $rootScope.testUrl = 'script:yay, javascript:nay';
             $rootScope.$apply();
-            expect(element.prop('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
+            expect(element.prop('srcset')).toEqual('');
           });
         });
 

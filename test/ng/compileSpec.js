@@ -11601,6 +11601,40 @@ describe('$compile', function() {
       });
     }));
 
+    it('should sanitize every url the browser reads from a srcset whose parts join into one url', function() {
+      var origin = window.location.protocol + '//' + window.location.host;
+      module(function($compileProvider) {
+        $compileProvider.imgSrcSanitizationTrustedUrlList(new RegExp('^(https://good\\.example/|' + origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/)'));
+      });
+      inject(function($rootScope, $compile) {
+        element = $compile('<div><img srcset="{{testUrl}}"><picture><source srcset="{{testUrl}}"></picture></div>')($rootScope);
+        $rootScope.testUrl = 'https://good.example,@evil.example/x';
+        $rootScope.$digest();
+        expect(element.find('img').attr('srcset')).toEqual('');
+        forEach(['https://good.example , @evil.example/x', 'https://good.example,x.evil.example/p 1x', ', https://good.example,@evil.example/x',
+            'https://good.example/a.png 1x, https://good.example,@evil.example/x', 'https://good.example/a.png (x), https://good.example,@evil.example/x'], function(value) {
+          $rootScope.testUrl = value;
+          $rootScope.$digest();
+          expect(element.find('img').attr('srcset')).toEqual('');
+          expect(element.find('source').attr('srcset')).toEqual('');
+        });
+        $rootScope.testUrl = 'https://good.example/a.png 1x , https://good.example/b.png 2x';
+        $rootScope.$digest();
+        expect(element.find('img').attr('srcset')).toEqual('https://good.example/a.png 1x,https://good.example/b.png 2x');
+        expect(element.find('source').attr('srcset')).toEqual('https://good.example/a.png 1x,https://good.example/b.png 2x');
+      });
+    });
+
+    it('should sanitize every url the browser reads from a srcset with many parts in time linear in its length', inject(function($rootScope, $compile) {
+      element = $compile('<img srcset="{{testUrl}}">')($rootScope);
+      var value = new Array(60001).join('x\ty,');
+      var start = Date.now();
+      $rootScope.testUrl = value;
+      $rootScope.$digest();
+      expect(Date.now() - start).toBeLessThan(2000);
+      expect(element.attr('srcset')).toEqual(value);
+    }));
+
     it('should sanitize every url the browser reads from a srcset with a long run of whitespace in time linear in its length', inject(function($rootScope, $compile) {
       element = $compile('<img srcset="{{testUrl}}">')($rootScope);
       var spaces = new Array(40001).join(' ');
@@ -11643,12 +11677,12 @@ describe('$compile', function() {
         element = $compile('<img srcset="{{testUrl}}, {{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'javascript:yay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('');
 
         element = $compile('<img srcset="java{{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'script:yay, javascript:nay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('');
       });
     });
 
