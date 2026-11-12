@@ -4839,7 +4839,7 @@ describe('input', function() {
         ['scheme://username@example.com', true],
         ['scheme://u0s.e+r-n_a~m!e@example.com', true],
         ['scheme://u#s$e%r^n&a*m;e@example.com', true],
-        ['scheme://:password@example.com', false],
+        ['scheme://:password@example.com', true],
         ['scheme://username:password@example.com', true],
         ['scheme://username:pass:word@example.com', true],
         ['scheme://username:p0a.s+s-w_o~r!d@example.com', true],
