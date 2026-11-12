@@ -11535,7 +11535,7 @@ describe('$compile', function() {
       $rootScope.testUrl = $sce.trustAsUrl('javascript:something');
       $rootScope.$digest();
       expect(element.attr('srcset')).toEqual(
-          'unsafe:javascript:something ,unsafe:javascript:something');
+          'unsafe:javascript:something,unsafe:javascript:something');
     }));
 
     it('should sanitize the srcset of source elements', inject(function($rootScope, $compile) {
@@ -11583,6 +11583,38 @@ describe('$compile', function() {
       expect(element.find('source').attr('srcset')).toEqual('http://example.com/image.png');
     }));
 
+    it('should sanitize every url the browser reads from a srcset', inject(function($rootScope, $compile) {
+      element = $compile('<div><img srcset="{{testUrl}}"><picture><source srcset="{{testUrl}}"></picture></div>')($rootScope);
+      var cases = [
+        ['http://example.com/a.png xyz,javascript:doEvilStuff()', 'http://example.com/a.png xyz,unsafe:javascript:doEvilStuff()'],
+        [',javascript:doEvilStuff() 1x', ',unsafe:javascript:doEvilStuff() 1x'],
+        ['http://example.com/a.png 1x,,javascript:doEvilStuff() 2x', 'http://example.com/a.png 1x,,unsafe:javascript:doEvilStuff() 2x'],
+        ['http://example.com/a.png 1x, javascript:doEvilStuff() 2x', 'http://example.com/a.png 1x,unsafe:javascript:doEvilStuff() 2x'],
+        ['http://example.com/a.png xyz,javascript:x,\u00a0 javascript:doEvilStuff() 2x',
+          'http://example.com/a.png xyz,unsafe:javascript:x,unsafe:javascript:doEvilStuff() 2x']
+      ];
+      forEach(cases, function(c) {
+        $rootScope.testUrl = c[0];
+        $rootScope.$digest();
+        expect(element.find('img').attr('srcset')).toEqual(c[1]);
+        expect(element.find('source').attr('srcset')).toEqual(c[1]);
+      });
+    }));
+
+    it('should sanitize every url the browser reads from a srcset with a long run of whitespace in time linear in its length', inject(function($rootScope, $compile) {
+      element = $compile('<img srcset="{{testUrl}}">')($rootScope);
+      var spaces = new Array(40001).join(' ');
+      var start = Date.now();
+      $rootScope.testUrl = 'http://example.com/a.png' + spaces + 'b';
+      $rootScope.$digest();
+      var first = element.attr('srcset');
+      $rootScope.testUrl = 'http://example.com/a.png 1x,' + spaces + 'http://example.com/b.png 2x';
+      $rootScope.$digest();
+      expect(Date.now() - start).toBeLessThan(1000);
+      expect(first).toEqual('http://example.com/a.png b');
+      expect(element.attr('srcset')).toEqual('http://example.com/a.png 1x,http://example.com/b.png 2x');
+    }));
+
     it('should sanitize a source srcset with no whitespace in time linear in its length', inject(function($rootScope, $compile) {
       element = $compile('<picture><source srcset="{{testUrl}}"></picture>')($rootScope);
       var edges = new Array(40001).join(',\u00a0');
@@ -11611,12 +11643,12 @@ describe('$compile', function() {
         element = $compile('<img srcset="{{testUrl}}, {{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'javascript:yay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl ,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
 
         element = $compile('<img srcset="java{{testUrl}}"></img>')($rootScope);
         $rootScope.testUrl = 'script:yay, javascript:nay';
         $rootScope.$apply();
-        expect(element.attr('srcset')).toEqual('someSanitizedUrl ,someSanitizedUrl');
+        expect(element.attr('srcset')).toEqual('someSanitizedUrl,someSanitizedUrl');
       });
     });
 
@@ -11630,18 +11662,18 @@ describe('$compile', function() {
         'http://example.com/image.png 2x':'http://example.com/image.png 2x',
         'http://example.com/image.png 1.5x':'http://example.com/image.png 1.5x',
         'http://example.com/image1.png 1x,http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 1x ,http://example.com/image2.png 2x':'http://example.com/image1.png 1x ,http://example.com/image2.png 2x',
+        'http://example.com/image1.png 1x ,http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
         'http://example.com/image1.png 1x, http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
-        'http://example.com/image1.png 1x , http://example.com/image2.png 2x':'http://example.com/image1.png 1x ,http://example.com/image2.png 2x',
+        'http://example.com/image1.png 1x , http://example.com/image2.png 2x':'http://example.com/image1.png 1x,http://example.com/image2.png 2x',
         'http://example.com/image1.png 48w,http://example.com/image2.png 64w':'http://example.com/image1.png 48w,http://example.com/image2.png 64w',
         //Test regex to make sure doesn't mistake parts of url for width descriptors
         'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w':'http://example.com/image1.png?w=48w,http://example.com/image2.png 64w',
         'http://example.com/image1.png 1x,http://example.com/image2.png 64w':'http://example.com/image1.png 1x,http://example.com/image2.png 64w',
-        'http://example.com/image1.png,http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png ,http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png, http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png , http://example.com/image2.png':'http://example.com/image1.png ,http://example.com/image2.png',
-        'http://example.com/image1.png 1x, http://example.com/image2.png 2x, http://example.com/image3.png 3x':
+        'http://example.com/image1.png,http://example.com/image2.png':'http://example.com/image1.png,http://example.com/image2.png',
+        'http://example.com/image1.png ,http://example.com/image2.png':'http://example.com/image1.png,http://example.com/image2.png',
+        'http://example.com/image1.png, http://example.com/image2.png':'http://example.com/image1.png,http://example.com/image2.png',
+        'http://example.com/image1.png , http://example.com/image2.png':'http://example.com/image1.png,http://example.com/image2.png',
+        'http://example.com/image1.png 1x, http://example.com/image2.png 2x,http://example.com/image3.png 3x':
           'http://example.com/image1.png 1x,http://example.com/image2.png 2x,http://example.com/image3.png 3x',
         'javascript:doEvilStuff() 2x': 'unsafe:javascript:doEvilStuff() 2x',
         'http://example.com/image1.png 1x,javascript:doEvilStuff() 2x':'http://example.com/image1.png 1x,unsafe:javascript:doEvilStuff() 2x',
