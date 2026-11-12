@@ -4794,6 +4794,20 @@ describe('input', function() {
     });
 
 
+    it('should validate a url with a long run of slashes in time linear in its length', function() {
+      var inputElm = helper.compileInput('<input type="url" ng-model="url" name="alias" />');
+      var slashes = new Array(60001).join('/');
+      var start = Date.now();
+      helper.changeInputValueTo('a:' + slashes + ':');
+      expect(inputElm).toBeInvalid();
+      helper.changeInputValueTo('a://' + slashes + '\n');
+      expect(inputElm).toBeInvalid();
+      helper.changeInputValueTo('a:' + slashes + 'host.example/b');
+      expect(inputElm).toBeValid();
+      expect(Date.now() - start).toBeLessThan(1000);
+    });
+
+
     describe('URL_REGEXP', function() {
       // See valid URLs in RFC3987 (http://tools.ietf.org/html/rfc3987)
       // Note: We are being more lenient, because browsers are too.
@@ -4825,7 +4839,7 @@ describe('input', function() {
         ['scheme://username@example.com', true],
         ['scheme://u0s.e+r-n_a~m!e@example.com', true],
         ['scheme://u#s$e%r^n&a*m;e@example.com', true],
-        ['scheme://:password@example.com', true],
+        ['scheme://:password@example.com', false],
         ['scheme://username:password@example.com', true],
         ['scheme://username:pass:word@example.com', true],
         ['scheme://username:p0a.s+s-w_o~r!d@example.com', true],
