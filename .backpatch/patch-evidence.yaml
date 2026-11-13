@@ -1,6 +1,6 @@
 schema: osera-patch-evidence/0.1.0
 producer: moderne
-release: 1.8.4-backpatch-00007
+release: 1.8.4-backpatch-00008
 baseline: v1.8.3+backpatch.baseline
 fixes:
   - cve: CVE-2026-11998
@@ -66,12 +66,20 @@ fixes:
     basis: original
     artifacts:
       - angular
-    note: "New in this release. angular.copy took a RegExp's flags with a regex that, from each position of the source, ran to the next slash before failing, so copying a RegExp with a long source took time quadratic in its length (about 4.6 s for 100,000 characters in Chromium 128); the flags, the text after the last slash of the RegExp's string, are now taken with lastIndexOf. The change is ours. angular carries it and is rebuilt; angular-resource and angular-sanitize are rebuilt too. AngularJS's error messages now link to https://errors.angularjs.org/<version>/... with this line's version, which redirects to a code.angularjs.org page that does not exist (404), where 1.8.3's link resolves."
+    note: "Carried from 1.8.4-backpatch-00007. angular.copy took a RegExp's flags with a regex that, from each position of the source, ran to the next slash before failing, so copying a RegExp with a long source took time quadratic in its length (about 4.6 s for 100,000 characters in Chromium 128); the flags, the text after the last slash of the RegExp's string, are now taken with lastIndexOf. angular carries it and is rebuilt."
+  - cve: CVE-2022-25844
+    advisory_url: https://nvd.nist.gov/vuln/detail/CVE-2022-25844
+    patch_commit_url: https://github.com/moderne-backpatch-alliance/backpatch-angular.js/commit/0fcf860
+    not_applicable_rationale: a provider-developed fix; no upstream-authored code to credit
+    basis: original
+    artifacts:
+      - angular
+    note: "New in this release. With an empty currency symbol, the currency filter removed the symbol and the whitespace around it with a regex that, from each position of a run of whitespace no symbol follows, scanned to the end of that run, so a locale pattern with a long run of whitespace made currency(amount, '') take time quadratic in its length (about 2.3 s for 60,000 spaces in Chromium 128); the same replacement is now done in one pass. The change is ours. angular carries it and is rebuilt; angular-resource and angular-sanitize are rebuilt too. AngularJS's error messages now link to https://errors.angularjs.org/<version>/... with this line's version, which redirects to a code.angularjs.org page that does not exist (404), where 1.8.3's link resolves."
 tests:
-  commit: 9c3b0ca9e6df6074e6c57fa837f1af32307214ac
+  commit: 0fcf86082fee6e85c4e555518de69c69fd665d43
   command: "yarn 1.22.22 install --frozen-lockfile --ignore-scripts at the tag, then at the tested commit upstream's karma suites (karma-jqlite, karma-jquery, karma-jquery-2.2, karma-jquery-2.1, karma-modules, karma-modules-ngAnimate, karma-modules-ngMock, karma-docs) in headless Chromium with karma's junit reporter, the 3 input datetime-local specs left out by a spec filter in the run, and promises-aplus-tests on grunt's adapter with mocha's xunit reporter; the counter's own specs ran the same way on the packaged angular.js and angular.min.js with upstream's core test helpers mapped to their public angular equivalents, where toThrowMinErr checks namespace and code since the minified file strips minErr messages; hostname attributes removed from the reports"
   runtime: Node.js v16.20.2, yarn 1.22.22, Temurin 17.0.10, Chromium 128.0.6613.18 headless, macOS 27.2 arm64
-  report: angular-1.8.4-backpatch-00007-tests.zip
-  report_sha256: 8a5c91950c9ce544cb7a3968b67e502c02e77df26210c77dad40bde1aa5ed3c4
+  report: angular-1.8.4-backpatch-00008-tests.zip
+  report_sha256: d2e6a1f62d87fd68d82b4cd2c5c9ec74afa37ce1bb60c3e084e71a3e4089e9f1
   result: pass
-  note: "Upstream's suites at the tested commit: jqlite 6235, jquery 6239, jquery 2.2 and jquery 2.1 6235 each, all passed but the 3 input datetime-local specs left out of each, excluded with an operator's yes as at 1.8.4-backpatch-00001 (Chrome's datetime-local value drops trailing zeros of the milliseconds, so they fail at 1.8.3 and here alike); modules 677, ngAnimate 552, ngMock 279, docs 15 and Promises/A+ 872 passed. One spec is ours: \"should copy a RegExp with a long source in time linear in its length\" fails on the code below the fix (4.6 s) and on npmjs's 1.8.3 angular.js and angular.min.js (4.6 s), and passes here (3 to 4 ms); the copy's source and flags are asserted after the time. On the packaged files it ran with test/AngularSpec.js's other specs filtered out. At this release's version without this fix, the members' files differ from 1.8.4-backpatch-00006's only in the version; with it, angular.js differs by the fix's lines. The archive's file-origins.yaml names the origin of every file the release publishes, for all 14 members: a built file by its build and inputs at the tested commit, every other file by its path in upstream's angular/bower-<member> at that repository's v1.8.3 commit, byte for byte, and each package.json as that file with only its version line rewritten."
+  note: "Upstream's suites at the tested commit: jqlite 6236, jquery 6240, jquery 2.2 and jquery 2.1 6236 each, all passed but the 3 input datetime-local specs left out of each, excluded with an operator's yes as at 1.8.4-backpatch-00001 (Chrome's datetime-local value drops trailing zeros of the milliseconds, so they fail at 1.8.3 and here alike); modules 677, ngAnimate 552, ngMock 279, docs 15 and Promises/A+ 872 passed. One spec is ours: \"should trim whitespace around an empty currency symbol in time linear in its length\" fails on the code below the fix and on npmjs's 1.8.3 angular.js and angular.min.js (2.3 s), and passes here (8 to 9 ms); its two values' output is asserted before the time. On the packaged files it ran with test/ng/filter/filtersSpec.js's other specs filtered out. At this release's version without this fix, the members' files differ from 1.8.4-backpatch-00007's only in the version; with it, angular.js differs by the fix's lines. The archive's file-origins.yaml names the origin of every file the release publishes, for all 14 members: a built file by its build and inputs at the tested commit, every other file by its path in upstream's angular/bower-<member> at that repository's v1.8.3 commit, byte for byte, and each package.json as that file with only its version line rewritten."
